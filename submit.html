@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>submit.sh — 需求 / 问题提报</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f0d;
+      --panel: #111713;
+      --border: #1f2b24;
+      --text: #d3e5d8;
+      --muted: #7d9488;
+      --accent: #4af68a;
+      --accent-dim: #2a7a4e;
+      --danger: #f26d63;
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 500px at 80% -10%, rgba(42, 122, 78, 0.28), transparent 60%),
+        radial-gradient(700px 400px at 0% 110%, rgba(74, 246, 138, 0.10), transparent 55%),
+        var(--bg);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, "Courier New", "Microsoft YaHei", monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .term-window {
+      width: 100%;
+      max-width: 680px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      animation: winIn 0.5s ease both;
+    }
+
+    @keyframes winIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.985); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .term-window.success {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent-dim), 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 44px rgba(74, 246, 138, 0.18);
+    }
+
+    .term-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #0d130f;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .term-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .term-dot.r { background: #ff5f57; }
+    .term-dot.y { background: #febc2e; }
+    .term-dot.g { background: #28c840; }
+
+    .term-title {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 8px;
+    }
+
+    .term-status {
+      margin-left: auto;
+      color: var(--accent);
+      font-size: 11px;
+    }
+
+    .term-status .dot {
+      display: inline-block;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    .term-body {
+      position: relative;
+      padding: 12px 16px 16px;
+    }
+
+    .term-body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px);
+    }
+
+    .term-line {
+      margin: 0 0 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .term-line .load { color: var(--accent); }
+    .term-line .dim { color: var(--muted); }
+
+    .term-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin: -4px 0 10px;
+    }
+
+    .cursor {
+      display: inline-block;
+      color: var(--accent);
+      margin-left: 2px;
+      animation: blink 1s steps(1) infinite;
+    }
+
+    .term-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .term-row:has(.term-field[hidden]) {
+      grid-template-columns: 1fr;
+    }
+
+    .term-field {
+      display: block;
+      margin-bottom: 9px;
+    }
+
+    .term-field > span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .term-field > span b { color: var(--danger); }
+
+    .term-field, .term-actions {
+      animation: fadeUp 0.45s ease both;
+    }
+
+    .att-box {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.02);
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+
+    .att-box:hover {
+      border-color: var(--accent-dim);
+      color: var(--text);
+      background: rgba(74, 246, 138, 0.04);
+    }
+
+    .att-thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .thumb {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb button {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 18px;
+      height: 18px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      color: #ffffff;
+      font-size: 12px;
+      line-height: 18px;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .thumb button:hover { background: var(--danger); }
+
+    .term-input, .term-select, .term-textarea {
+      width: 100%;
+      background: #0a0f0c;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .term-input:focus, .term-select:focus, .term-textarea:focus {
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent-dim);
+    }
+
+    .term-input::placeholder, .term-textarea::placeholder { color: #4c5f54; }
+    .term-textarea { resize: vertical; }
+
+    .term-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234af68a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px 12px;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+
+    .term-select:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .term-select option {
+      background: #0d130f;
+      color: var(--text);
+    }
+
+    .date-box {
+      position: relative;
+    }
+
+    .date-display {
+      cursor: pointer;
+      padding-right: 34px;
+    }
+
+    .date-ico {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    .date-pop {
+      position: fixed;
+      z-index: 9999;
+      width: 248px;
+      background: #0d130f;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+      padding: 10px;
+      animation: fadeUp 0.18s ease both;
+    }
+
+    .date-pop[hidden] { display: none; }
+
+    .dp-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .dp-title {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .dp-nav {
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 8px;
+      font-family: inherit;
+    }
+
+    .dp-nav:hover { color: var(--accent); }
+
+    .dp-week {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin-bottom: 4px;
+    }
+
+    .dp-week span {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 3px 0;
+    }
+
+    .dp-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .dp-cell {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 0;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    .dp-cell:hover {
+      background: rgba(74, 246, 138, 0.12);
+      color: #d8ffe6;
+    }
+
+    .dp-cell.selected {
+      background: var(--accent);
+      color: #06130b;
+      font-weight: 600;
+    }
+
+    .dp-cell.today:not(.selected) {
+      border: 1px solid var(--accent-dim);
+    }
+
+    .dp-foot {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    .dp-clear {
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 2px 6px;
+    }
+
+    .dp-clear:hover { color: var(--accent); }
+
+    .csel {
+      position: relative;
+    }
+
+    .csel-head {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #0a0f0c;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .csel-head:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .csel.open .csel-head {
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent-dim);
+    }
+
+    .csel-value {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .csel-arrow {
+      width: 12px;
+      height: 12px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: none;
+      transition: transform 0.15s ease;
+    }
+
+    .csel.open .csel-arrow {
+      transform: rotate(180deg);
+    }
+
+    .csel-menu {
+      position: fixed;
+      z-index: 9999;
+      background: #0d130f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+      animation: fadeUp 0.18s ease both;
+    }
+
+    .csel-menu[hidden] { display: none; }
+
+    .csel-opt {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: var(--text);
+      border: 0;
+      padding: 9px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .csel-opt:hover {
+      background: rgba(74, 246, 138, 0.10);
+      color: #d8ffe6;
+    }
+
+    .csel-opt.active {
+      color: var(--accent);
+      background: rgba(74, 246, 138, 0.06);
+    }
+
+    .csel-native {
+      display: none !important;
+    }
+
+    .ico {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: -2px;
+      margin-right: 6px;
+      opacity: 0.85;
+    }
+
+    .term-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .term-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .term-btn:hover {
+      color: var(--text);
+      border-color: var(--accent-dim);
+    }
+
+    .term-btn-primary {
+      background: var(--accent-dim);
+      border-color: transparent;
+      color: #06130b;
+      font-weight: 600;
+    }
+
+    .term-btn-primary:hover {
+      background: var(--accent);
+      color: #04120a;
+    }
+
+    .term-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .term-btn:active {
+      transform: scale(0.97);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      background: #0d130f;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      max-width: 90vw;
+    }
+
+    .toast[hidden] { display: none; }
+
+    .ok-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(4, 8, 6, 0.6);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .ok-modal[hidden] { display: none; }
+
+    .ok-terminal {
+      width: 100%;
+      max-width: 380px;
+      background: var(--panel);
+      border: 1px solid var(--accent-dim);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 44px rgba(74, 246, 138, 0.18), 0 24px 60px rgba(0, 0, 0, 0.5);
+      animation: popIn 0.25s ease both;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.92) translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .ok-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #0d130f;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ok-bar-title {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    .ok-body {
+      padding: 18px 20px 20px;
+    }
+
+    .ok-line {
+      margin: 0 0 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .ok-line .ok-ok {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .ok-line.dim {
+      color: var(--muted);
+    }
+
+    .ok-cursor {
+      color: var(--accent);
+      animation: blink 1s steps(1) infinite;
+      margin: 2px 0 14px;
+    }
+
+    .ok-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .ok-btn {
+      min-width: 120px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px;
+        align-items: stretch;
+      }
+
+      .term-window {
+        border-radius: 10px;
+      }
+
+      .term-body {
+        padding: 12px 12px 14px;
+      }
+
+      .term-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .term-line {
+        line-height: 1.6;
+        word-break: break-word;
+      }
+
+      .term-input, .term-textarea, .csel-head {
+        font-size: 16px;
+        padding: 9px 12px;
+      }
+
+      .csel-opt {
+        padding: 12px;
+        font-size: 15px;
+      }
+
+      .csel-menu {
+        max-height: 45vh;
+      }
+
+      .term-actions {
+        margin-top: 2px;
+      }
+
+      .term-actions .term-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 11px 14px;
+      }
+
+      .att-box {
+        padding: 10px;
+      }
+
+      .thumb {
+        width: 56px;
+        height: 56px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12l9-9h7a1 1 0 0 1 1 1v7l-9 9a2 2 0 0 1-3 0l-5-5a2 2 0 0 1 0-3z"/><circle cx="16" cy="8" r="1.2"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M3 17l5-5 4 4 3-3 6 6"/></symbol>
+    <symbol id="i-title" viewBox="0 0 24 24"><path d="M5 4h14M5 9h10M5 14h14M5 19h10"/></symbol>
+    <symbol id="i-desc" viewBox="0 0 24 24"><path d="M5 5h14M5 10h10M5 15h14M5 20h8"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+    <symbol id="i-clear" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+  </svg>
+
+  <div class="term-window">
+    <div class="term-bar">
+      <span class="term-dot r"></span><span class="term-dot y"></span><span class="term-dot g"></span>
+      <span class="term-title">submit.sh — 需求 / 问题提报</span>
+      <span class="term-status"><span class="dot">●</span> online</span>
+    </div>
+    <div class="term-body">
+      <p class="term-line">
+        $ 当前负载：待处理任务 <span class="load" id="pending-count">…</span> 条
+        <span class="dim">｜</span> 待评估提报 <span class="load" id="eval-count">…</span> 条
+      </p>
+      <p class="term-note">提交后进入提报箱，处理结果会通过钉钉反馈给你。</p>
+
+      <form id="submit-form">
+        <div class="term-row">
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-user"/></svg>提交人（选填）</span>
+            <input id="s-name" class="term-input" maxlength="40" placeholder="姓名 / 部门">
+          </label>
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-tag"/></svg>类型 <b>*</b></span>
+            <select id="s-type" class="term-select">
+              <option value="问题">问题</option>
+              <option value="需求">需求</option>
+              <option value="其他">其他</option>
+            </select>
+          </label>
+        </div>
+        <div class="term-row">
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-folder"/></svg>上级分类 <b>*</b></span>
+            <select id="s-category" class="term-select"></select>
+          </label>
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-db"/></svg>业务系统 <b>*</b></span>
+            <select id="s-system" class="term-select"></select>
+          </label>
+        </div>
+        <label class="term-field" id="s-system-other-wrap" hidden>
+          <span><svg class="ico"><use href="#i-db"/></svg>其他系统 <b>*</b></span>
+          <input id="s-system-other" class="term-input" maxlength="60" placeholder="请填写系统名称">
+        </label>
+        <label class="term-field">
+          <span><svg class="ico"><use href="#i-title"/></svg>标题 <b>*</b></span>
+          <input id="s-title" class="term-input" required maxlength="120" placeholder="一句话说明问题 / 需求">
+        </label>
+        <label class="term-field">
+          <span><svg class="ico"><use href="#i-desc"/></svg>详细描述 <b>*</b></span>
+          <textarea id="s-desc" class="term-textarea" required rows="5" maxlength="2000" placeholder="背景、现象、期望结果、涉及页面/数据等，越具体越好"></textarea>
+        </label>
+        <div class="term-row">
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-flag"/></svg>优先级</span>
+            <select id="s-priority" class="term-select">
+              <option value="low">低</option>
+              <option value="medium" selected>中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+          <label class="term-field">
+            <span><svg class="ico"><use href="#i-clock"/></svg>期望完成时间</span>
+            <div class="date-box" id="date-box">
+              <input id="s-due-display" class="term-input date-display" readonly placeholder="选择日期（可选）">
+              <svg class="date-ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            </div>
+            <input type="hidden" id="s-due" value="">
+          </label>
+        </div>
+        <div class="term-field">
+          <span><svg class="ico"><use href="#i-image"/></svg>附件（选填，图片，单张 ≤ 10MB）</span>
+          <div class="att-box" id="att-box">＋ 点击选择图片</div>
+          <input type="file" id="att-input" accept="image/*" multiple hidden>
+          <div class="att-thumbs" id="att-thumbs"></div>
+        </div>
+        <div class="term-actions">
+          <button type="reset" class="term-btn"><svg class="ico"><use href="#i-clear"/></svg>清空</button>
+          <button type="submit" class="term-btn term-btn-primary"><svg class="ico"><use href="#i-send"/></svg><span id="submit-label">提交</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="date-pop" id="date-pop" hidden>
+    <div class="dp-head">
+      <button type="button" class="dp-nav" id="dp-prev">‹</button>
+      <span class="dp-title" id="dp-head-label"></span>
+      <button type="button" class="dp-nav" id="dp-next">›</button>
+    </div>
+    <div class="dp-week">
+      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+    </div>
+    <div class="dp-grid" id="dp-grid"></div>
+    <div class="dp-foot">
+      <button type="button" class="dp-clear" id="dp-clear">清除</button>
+    </div>
+  </div>
+
+  <div class="ok-modal" id="ok-modal" hidden>
+    <div class="ok-terminal">
+      <div class="ok-bar">
+        <span class="term-dot r"></span><span class="term-dot y"></span><span class="term-dot g"></span>
+        <span class="ok-bar-title">submit.sh — 提交结果</span>
+      </div>
+      <div class="ok-body">
+        <p class="ok-line">$ <span class="ok-ok">提交成功</span></p>
+        <p class="ok-line dim" id="ok-text">后续将通过钉钉反馈结果</p>
+        <p class="ok-cursor">▊</p>
+        <div class="ok-actions">
+          <button type="button" class="term-btn term-btn-primary ok-btn" id="ok-confirm">› 确认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script>
+    const CATEGORIES = {
+      '集团层': ['OA', '商旅', '钉钉', '邮箱', '企业微信', '阿里云'],
+      '星享铁旅': ['星享铁旅小程序', '星享铁旅官网', '得助智能客服', '销售易CRM', '珍岛SCRM'],
+      '观光列车': ['智能运营中台', '票付通', '年卡平台', '客如云'],
+      '其他': []
+    };
+    const $ = (sel) => document.querySelector(sel);
+    const toastEl = $('#toast');
+    let toastTimer = null;
+    let attFiles = [];
+    let serverOk = true;
+    let API_BASE = '';
+    const attBox = $('#att-box');
+    const attInput = $('#att-input');
+    const attThumbs = $('#att-thumbs');
+    let submitterId = localStorage.getItem('submitter_id');
+    if (!submitterId) {
+      submitterId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem('submitter_id', submitterId);
+    }
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
+    }
+
+    function showOk(text) {
+      $('#ok-text').textContent = text;
+      $('#ok-modal').hidden = false;
+    }
+
+    $('#ok-confirm').addEventListener('click', () => { $('#ok-modal').hidden = true; });
+
+    window.addEventListener('error', (e) => {
+      try { toast('页面脚本错误：' + (e && e.message ? e.message : '未知')); } catch (err) {}
+    });
+
+    function typeLine(text) {
+      const line = $('.term-line');
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      cursor.textContent = '▊';
+      line.textContent = '$ ';
+      line.appendChild(cursor);
+      let i = 0;
+      const timer = setInterval(() => {
+        if (i < text.length) {
+          cursor.insertAdjacentText('beforebegin', text[i]);
+          i++;
+        } else {
+          clearInterval(timer);
+        }
+      }, 16);
+    }
+
+    function typeText(el, text, delay, speed) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          let i = 0;
+          const timer = setInterval(() => {
+            i++;
+            el.textContent = text.slice(0, i);
+            if (i >= text.length) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, speed);
+        }, delay);
+      });
+    }
+
+    async function loadConfig() {
+      if (!location.hostname.endsWith('github.io')) return;
+      try {
+        const r = await fetch('config.js', { cache: 'no-store' });
+        const cfg = await r.json();
+        if (cfg && typeof cfg.apiBase === 'string' && cfg.apiBase) {
+          API_BASE = cfg.apiBase.replace(/\/+$/, '');
+        }
+      } catch (e) {}
+    }
+
+    async function runLabelTyping() {
+      const targets = [];
+      document.querySelectorAll('.term-title, .term-field > span, .term-note').forEach((span) => {
+        const clone = span.cloneNode(true);
+        clone.querySelectorAll('svg, b').forEach((n) => n.remove());
+        const text = clone.textContent.replace(/\s+/g, ' ').trim();
+        if (!text) return;
+        const svg = span.querySelector('svg');
+        const b = span.querySelector('b');
+        span.textContent = '';
+        if (svg) span.appendChild(svg);
+        const textEl = document.createElement('span');
+        span.appendChild(textEl);
+        if (b) span.appendChild(b);
+        targets.push({ el: textEl, text: text });
+      });
+      await Promise.all(targets.map((t, i) => typeText(t.el, t.text, 200 + i * 120, 28)));
+    }
+
+    function renderThumbs() {
+      attThumbs.innerHTML = attFiles.map((f, i) =>
+        '<div class="thumb"><img src="' + URL.createObjectURL(f) + '" alt="附件"><button type="button" data-remove="' + i + '">×</button></div>'
+      ).join('');
+    }
+
+    function readAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+        fr.onerror = () => reject(new Error('读取图片失败'));
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function escAttr(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    const ARROW_SVG = '<svg class="csel-arrow" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
+
+    let activeCsel = null;
+
+    function closeAllCsel() {
+      if (activeCsel) {
+        activeCsel.classList.remove('open');
+        if (activeCsel.menu) activeCsel.menu.hidden = true;
+        activeCsel = null;
+      }
+    }
+
+    function initCsel(select) {
+      const wrap = document.createElement('div');
+      wrap.className = 'csel';
+      select.classList.add('csel-native');
+      select.parentNode.insertBefore(wrap, select);
+      wrap.appendChild(select);
+
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'csel-head';
+      const val = document.createElement('span');
+      val.className = 'csel-value';
+      head.appendChild(val);
+      head.insertAdjacentHTML('beforeend', ARROW_SVG);
+      wrap.appendChild(head);
+
+      const menu = document.createElement('div');
+      menu.className = 'csel-menu';
+      menu.hidden = true;
+      document.body.appendChild(menu);
+      wrap.menu = menu;
+
+      const render = () => {
+        menu.innerHTML = Array.from(select.options).map((o) =>
+          '<button type="button" class="csel-opt' + (o.selected ? ' active' : '') + '" data-v="' + escAttr(o.value) + '">' + escAttr(o.text) + '</button>'
+        ).join('');
+        val.textContent = select.options[select.selectedIndex] ? select.options[select.selectedIndex].text : '';
+      };
+
+      head.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasOpen = !menu.hidden;
+        closeAllCsel();
+        if (wasOpen) return;
+        render();
+        const r = wrap.getBoundingClientRect();
+        const mh = Math.min(220, window.innerHeight * 0.45);
+        menu.style.left = r.left + 'px';
+        menu.style.width = r.width + 'px';
+        if (window.innerHeight - r.bottom < mh && r.top > mh) {
+          menu.style.top = 'auto';
+          menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+        } else {
+          menu.style.top = (r.bottom + 6) + 'px';
+          menu.style.bottom = 'auto';
+        }
+        menu.hidden = false;
+        wrap.classList.add('open');
+        activeCsel = wrap;
+      });
+
+      menu.addEventListener('click', (e) => {
+        const btn = e.target.closest('.csel-opt');
+        if (!btn) return;
+        select.value = btn.dataset.v;
+        select.dispatchEvent(new Event('change'));
+        closeAllCsel();
+        render();
+      });
+
+      select.addEventListener('change', render);
+      select.__cselRender = render;
+      render();
+    }
+
+    let dueDate = '';
+    let dpYear = 0;
+    let dpMonth = 0;
+    let activeDatePicker = null;
+
+    function closeDatePicker() {
+      if (activeDatePicker) {
+        activeDatePicker.hidden = true;
+        activeDatePicker = null;
+      }
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function renderCalendar() {
+      $('#dp-head-label').textContent = dpYear + ' 年 ' + (dpMonth + 1) + ' 月';
+      const first = new Date(dpYear, dpMonth, 1);
+      const startWeekday = (first.getDay() + 6) % 7;
+      const daysInMonth = new Date(dpYear, dpMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
+      let html = '';
+      for (let i = 0; i < startWeekday; i++) html += '<span></span>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = dpYear + '-' + pad2(dpMonth + 1) + '-' + pad2(d);
+        html += '<button type="button" class="dp-cell' +
+          (ds === dueDate ? ' selected' : '') +
+          (ds === todayStr ? ' today' : '') +
+          '" data-date="' + ds + '">' + d + '</button>';
+      }
+      $('#dp-grid').innerHTML = html;
+    }
+
+    function openDatePicker() {
+      const anchor = $('#date-box');
+      const now = dueDate ? dueDate.split('-').map(Number) : null;
+      dpYear = now ? now[0] : new Date().getFullYear();
+      dpMonth = now ? now[1] - 1 : new Date().getMonth();
+      renderCalendar();
+      const pop = $('#date-pop');
+      const r = anchor.getBoundingClientRect();
+      const w = 248;
+      pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+      pop.style.width = w + 'px';
+      if (window.innerHeight - r.bottom < 300 && r.top > 300) {
+        pop.style.top = 'auto';
+        pop.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+      } else {
+        pop.style.top = (r.bottom + 6) + 'px';
+        pop.style.bottom = 'auto';
+      }
+      pop.hidden = false;
+      activeDatePicker = pop;
+    }
+
+    $('#date-box').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (activeDatePicker && !activeDatePicker.hidden) {
+        closeDatePicker();
+        return;
+      }
+      closeAllCsel();
+      openDatePicker();
+    });
+
+    $('#dp-prev').addEventListener('click', (e) => {
+      e.stopPropagation();
+      dpMonth--;
+      if (dpMonth < 0) { dpMonth = 11; dpYear--; }
+      renderCalendar();
+    });
+
+    $('#dp-next').addEventListener('click', (e) => {
+      e.stopPropagation();
+      dpMonth++;
+      if (dpMonth > 11) { dpMonth = 0; dpYear++; }
+      renderCalendar();
+    });
+
+    $('#dp-grid').addEventListener('click', (e) => {
+      const cell = e.target.closest('.dp-cell');
+      if (!cell) return;
+      dueDate = cell.dataset.date;
+      $('#s-due').value = dueDate;
+      $('#s-due-display').value = dueDate;
+      closeDatePicker();
+    });
+
+    $('#dp-clear').addEventListener('click', (e) => {
+      e.stopPropagation();
+      dueDate = '';
+      $('#s-due').value = '';
+      $('#s-due-display').value = '';
+      closeDatePicker();
+    });
+
+    document.addEventListener('click', () => { closeAllCsel(); closeDatePicker(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeAllCsel(); closeDatePicker(); }
+    });
+    window.addEventListener('resize', () => { closeAllCsel(); closeDatePicker(); });
+
+    attBox.addEventListener('click', () => attInput.click());
+    attInput.addEventListener('change', () => {
+      for (const f of attInput.files) {
+        if (!f.type.startsWith('image/')) { toast('仅支持图片文件'); continue; }
+        if (f.size > 10 * 1024 * 1024) { toast('单张图片不能超过 10MB'); continue; }
+        attFiles.push(f);
+      }
+      attInput.value = '';
+      renderThumbs();
+    });
+    attThumbs.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-remove]');
+      if (btn) {
+        attFiles.splice(Number(btn.dataset.remove), 1);
+        renderThumbs();
+      }
+    });
+
+    async function loadLoads() {
+      serverOk = true;
+      await loadConfig();
+      try {
+        const res = await fetch(API_BASE + '/api/status', { cache: 'no-store' });
+        const data = await res.json();
+        const n = data && typeof data.pendingTasks === 'number' ? data.pendingTasks : 0;
+        const m = data && typeof data.pendingSubs === 'number' ? data.pendingSubs : 0;
+        $('#pending-count').textContent = n;
+        $('#eval-count').textContent = m;
+        typeLine('当前负载：待处理任务 ' + n + ' 条 ｜ 待评估提报 ' + m + ' 条');
+      } catch (e) {
+        serverOk = false;
+        let n = 0;
+        let m = 0;
+        try {
+          const lt = JSON.parse(localStorage.getItem('daiban-assistant-tasks-v1') || '[]');
+          n = Array.isArray(lt) ? lt.filter((t) => ['not_started', 'in_progress', 'paused'].includes(t.status)).length : 0;
+        } catch (err) {}
+        try {
+          const ls = JSON.parse(localStorage.getItem('daiban-submissions-v1') || '[]');
+          m = Array.isArray(ls) ? ls.filter((s) => s.status === 'new').length : 0;
+        } catch (err) {}
+        $('#pending-count').textContent = n;
+        $('#eval-count').textContent = m;
+        typeLine('当前负载：待处理任务 ' + n + ' 条 ｜ 待评估提报 ' + m + ' 条（静态模式）');
+      }
+      $('.term-status').innerHTML = serverOk
+        ? '<span class="dot">●</span> online'
+        : '<span class="dot">●</span> offline（静态演示）';
+    }
+
+    loadLoads();
+    runLabelTyping();
+
+    document.querySelectorAll('#submit-form .term-field, #submit-form .term-actions').forEach((el, i) => {
+      el.style.animationDelay = (0.15 + i * 0.06) + 's';
+    });
+
+    function updateSystems() {
+      const cat = $('#s-category').value;
+      const isOther = cat === '其他';
+      $('#s-system').closest('.term-field').hidden = isOther;
+      $('#s-system-other-wrap').hidden = !isOther;
+      if (isOther) {
+        $('#s-system').innerHTML = '<option value="其他">其他</option>';
+        $('#s-system-other').focus();
+        return;
+      }
+      const systems = CATEGORIES[cat] || [];
+      $('#s-system').innerHTML = systems.map((s) => '<option value="' + s + '">' + s + '</option>').join('');
+      if ($('#s-system').__cselRender) $('#s-system').__cselRender();
+    }
+
+    $('#s-category').innerHTML = Object.keys(CATEGORIES).map((c) => '<option value="' + c + '">' + c + '</option>').join('');
+    $('#s-category').addEventListener('change', updateSystems);
+    updateSystems();
+
+    $('#submit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if ($('#s-category').value === '其他' && !$('#s-system-other').value.trim()) {
+        toast('请填写其他系统名称');
+        return;
+      }
+      if (!serverOk) {
+        const now = new Date();
+        const pad = (x) => String(x).padStart(2, '0');
+        const stamp = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+          ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+        const local = {
+          id: 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          type: $('#s-type').value,
+          category: $('#s-category').value,
+          system: $('#s-system').value,
+          systemOther: $('#s-system-other').value.trim(),
+          title: $('#s-title').value.trim(),
+          desc: $('#s-desc').value.trim(),
+          name: $('#s-name').value.trim(),
+          submitterId: submitterId,
+          priority: $('#s-priority').value,
+          due: $('#s-due').value,
+          images: [],
+          status: 'new',
+          feedback: '',
+          feedbackAt: '',
+          createdAt: stamp,
+          updatedAt: stamp
+        };
+        const list = JSON.parse(localStorage.getItem('daiban-submissions-v1') || '[]');
+        list.push(local);
+        localStorage.setItem('daiban-submissions-v1', JSON.stringify(list));
+        $('#submit-form').reset();
+        $('#s-system-other-wrap').hidden = true;
+        dueDate = '';
+        $('#s-due').value = '';
+        $('#s-due-display').value = '';
+        attFiles = [];
+        renderThumbs();
+        showOk('已保存到本浏览器（静态演示模式）');
+        loadLoads();
+        return;
+      }
+      const btn = $('#submit-form button[type=submit]');
+      const label = $('#submit-label');
+      btn.disabled = true;
+      label.textContent = '提交中…';
+      try {
+        const imageUrls = [];
+        for (const f of attFiles) {
+          const b64 = await readAsBase64(f);
+          const up = await fetch(API_BASE + '/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: f.name, data: b64, type: f.type })
+          });
+          const upData = await up.json();
+          if (!upData.ok) throw new Error(upData.error || '图片上传失败');
+          imageUrls.push(upData.url);
+        }
+        const res = await fetch(API_BASE + '/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: $('#s-name').value.trim(),
+            type: $('#s-type').value,
+            category: $('#s-category').value,
+            system: $('#s-system').value,
+            systemOther: $('#s-system-other').value.trim(),
+            title: $('#s-title').value.trim(),
+            desc: $('#s-desc').value.trim(),
+            submitterId: submitterId,
+            priority: $('#s-priority').value,
+            due: $('#s-due').value,
+            images: imageUrls
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '提交失败');
+        $('#submit-form').reset();
+        $('#s-system-other-wrap').hidden = true;
+        dueDate = '';
+        $('#s-due').value = '';
+        $('#s-due-display').value = '';
+        attFiles = [];
+        renderThumbs();
+        document.querySelector('.term-window').classList.add('success');
+        setTimeout(() => document.querySelector('.term-window').classList.remove('success'), 1800);
+        showOk('后续将通过钉钉反馈结果');
+        loadLoads();
+      } catch (err) {
+        toast('$ 提交失败：' + err.message);
+      } finally {
+        btn.disabled = false;
+        label.textContent = '提交';
+      }
+    });
+
+    document.querySelectorAll('#submit-form select').forEach((sel) => {
+      try { initCsel(sel); } catch (e) {
+        if (window.console) console.error(e);
+      }
+    });
+
+  </script>
+</body>
+</html>
