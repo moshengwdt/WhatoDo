@@ -1,3 +1,3 @@
 {
-  "apiBase": "https://translator-grey-separated-spa.trycloudflare.com"
+  "apiBase": "https://why-justice-health-bigger.trycloudflare.com"
 }
