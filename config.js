@@ -1,3 +1,3 @@
 {
-  "apiBase": "https://celebration-import-technique-somewhat.trycloudflare.com"
+  "apiBase": "https://translator-grey-separated-spa.trycloudflare.com"
 }
