@@ -1,3 +1,3 @@
 {
-  "apiBase": "https://indianapolis-weapon-focal-pen.trycloudflare.com"
+  "apiBase": "https://involve-boxing-beginning-achieve.trycloudflare.com"
 }
