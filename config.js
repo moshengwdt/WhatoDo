@@ -1,3 +1,3 @@
 {
-  "apiBase": "https://absent-famous-optical-declaration.trycloudflare.com"
+  "apiBase": "https://indianapolis-weapon-focal-pen.trycloudflare.com"
 }
